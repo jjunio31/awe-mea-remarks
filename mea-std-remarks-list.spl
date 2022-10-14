@@ -1,0 +1,522 @@
+object tmp-remarks-list
+    type is memory
+    file is "tmp-remarks-list"
+    record                  
+        tmp-mea-remark              type string   
+        tmp-mea-remark-type-count   pic 999
+    end-record
+    key is tmp-mea-remark unique
+
+object tmp-types-list
+    type is memory
+    file is "tmp-types-list"
+    record
+        tmp-my-key    pic 999          
+        tmp-mea-types type string 
+    end-record
+    key is tmp-mea-types unique
+
+
+field
+  //  z-new-remark-name type string
+    z-sel-mea-type like tmp-mea-types
+
+mode add-remark-one
+prompt "Add Remark(one)"
+help "This button only add remark to selected type"
+
+mode add-remark-all
+prompt "Add Remark(all)"
+help "This button adds remark to all type"
+
+mode remove-one-remark
+prompt "Remove (one)"
+help "This button only removes one remark to selected type"
+
+mode remove
+prompt "Remove (all)"
+help "This button only removes remark to all type"
+
+mode correct
+prompt "Correct"
+help "This button corrects remark"
+
+mode mode-select
+prompt "select"
+help "This button selects remark"
+
+mode mode-select-delete
+prompt "Remove"
+help "This button selects remark to delete"
+
+
+
+/**********************************************************************
+ *
+ *  procedure main
+ *
+ **********************************************************************/
+procedure main
+    window @1,1 to @30,100 title 'get-remarks'
+    //parameters
+    //returning
+    local
+        lf-calc pic 999
+        lf-count pic 999
+        lf-type-count pic 999
+        
+    no-hide
+
+    open mea-std-remarks-2
+    on error
+        open mea-std-remarks-2 create
+    end-on
+
+    open tmp-remarks-list truncate
+
+    select mea-remark,
+       //lf-calc = sum(lf-type-count),
+       lf-count = count(*)
+
+    from mea-std-remarks-2
+    group by mea-remark
+    detail
+        //message mea-remark,lf-count
+        set tmp-mea-remark = mea-remark
+        set tmp-mea-remark-type-count = lf-count
+        insert tmp-remarks-list
+        //message tmp-mea-remark-type-count
+    end-select
+
+    open mea-types
+    on error
+        open mea-types create
+    end-on
+
+    open tmp-types-list create
+
+    select * 
+    from mea-types
+    detail
+        set tmp-mea-types = mea-type
+        insert tmp-types-list
+    end-select
+
+
+    do show-remarks
+
+end-procedure  // end-procedure main
+
+
+/**********************************************************************
+ *
+ *  screen show-remarks
+ *
+ **********************************************************************/
+screen show-remarks
+    window @1,1 to @30,100 title 'Remarks List'
+    //parameters
+    //returning
+    local
+        lf-count-2 pic 9
+        lf-mea-remark type string
+        lf-mea-remark-2 type string
+        lf-entry-remark-all type string
+    no-hide
+
+    allow remove remove-one-remark add-remark-all add-remark-one correct
+    data-grid occurs 28
+    //
+    select * 
+    from tmp-remarks-list
+    //
+    //before
+    //
+    detail
+
+        //display tmp-mea-remark    @2,20
+        display tmp-mea-remark @2,20
+            title "Remarks"
+
+        display tmp-mea-remark-type-count     @2,30
+            title "Count of Types"
+    //
+    confirm auto
+    confirmed
+        switch screen-mode()
+            case remove
+
+                 select mea-remark
+                    from mea-std-remarks-2
+                    where mea-remark = tmp-mea-remark
+                    for update
+                    detail
+                    //message lf-mea-remark
+                        delete mea-std-remarks-2
+                 end-select
+
+            case correct
+
+                //set z-new-remark-name = tmp-mea-remark
+                //message z-new-remark-name
+                do update-remark-all
+                    parameter tmp-mea-remark
+
+            case add-remark-all 
+                    do procedure-add-remark-all parameter lf-entry-remark-all
+                    refresh data
+
+            case add-remark-one
+                    do screen-add-remark-one
+                        parameter tmp-mea-remark
+
+            case remove-one-remark
+                    do delete-to-one
+                        parameter tmp-mea-remark
+
+
+
+       end-switch
+    
+    end-confirm
+
+end-screen  // end-screen show-remarks
+
+/**********************************************************************
+ *
+ *  procedure procedure-add-remark-all
+ *
+ **********************************************************************/
+procedure procedure-add-remark-all
+    window @1,1 to @5,55 title 'Add remark to all types'
+    parameters
+        lr-entry-remark-all type string
+    //returning
+        
+    local
+        lf-type-1  type string
+        lf-type-2  type string
+        lf-type-3  type string
+        lf-type-4  type string
+        lf-type-5  type string
+        lf-type-6  type string
+        lf-type-7  type string
+        lf-type-8  type string
+        lf-type-9  type string
+        lf-type-10 type string
+        lf-type-11 type string
+        lf-type-12 type string
+        lf-type-13 type string
+        
+    no-hide
+
+        set lf-type-1 = "Dual Trade"
+        set lf-type-2 = "Flowmeter"
+        set lf-type-3 = "Forklift"
+        set lf-type-4 = "Hopper"
+        set lf-type-5 = "Metal Detector"
+        set lf-type-6 = "Misc"
+        set lf-type-7 = "Reminders"
+        set lf-type-8 = "Summary"
+        set lf-type-9 = "Temperature"
+        set lf-type-10 = "Test Masses"
+        set lf-type-11 = "Trade"
+        set lf-type-12 = "Weighbridge"
+        set lf-type-13 = "pH Meter"
+        
+        accept lr-entry-remark-all @3,15
+        title "Enter New Remark"
+
+        validation
+            if lr-entry-remark-all = " "
+                    message "Invalid Remark"
+                    reenter
+            end-if
+
+            get tmp-remarks-list key lr-entry-remark-all
+                on error
+                    else
+                    message 'Remark ' '"' rtrim(lr-entry-remark-all)'"' ' is already in use.' ' Please use another one.'
+                    reenter 
+                end-on
+        end-validation
+
+        
+        set mea-type = lf-type-1
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-2
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-3
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-4
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-5
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-6
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-7
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-8
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-9
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-10
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2 
+
+        set mea-type = lf-type-11
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-12
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+        set mea-type = lf-type-13
+        set mea-remark = lr-entry-remark-all
+        insert mea-std-remarks-2
+
+
+end-procedure  // end-procedure procedure-add-remark-all
+
+
+
+/**********************************************************************
+ *
+ *  procedure update-remark-all
+ *
+ **********************************************************************/
+procedure update-remark-all
+    window @1,1 to @5,55 title 'correct-remark-all'
+    parameters
+        lp-remark like mea-remark
+    //returning
+    local
+        lf-new-name-remark like mea-remark
+    no-hide
+
+        accept lf-new-name-remark @3,15
+            default lp-remark
+            title "Enter new remark"
+
+        validation
+            if lf-new-name-remark = " "
+                    message "Remark Invalid"
+                    reenter
+            end-if
+
+            get tmp-remarks-list key lf-new-name-remark
+            on error
+            else
+                message 'Remark ' '"' rtrim(lf-new-name-remark)'"' ' is already in use.' ' Please use another one.'
+                reenter 
+            end-on
+        end-validation
+
+        select * from mea-std-remarks-2
+        where mea-remark = lp-remark
+        for update
+        detail
+            set mea-remark = lf-new-name-remark
+            update mea-std-remarks-2
+            on error
+            else
+                select * from tmp-remarks-list
+                where tmp-mea-remark = lp-remark
+                 for update
+                detail
+                    set tmp-mea-remark = lf-new-name-remark
+                    update tmp-remarks-list
+                    refresh
+                end-select
+            end-on
+        end-select
+        
+        
+end-procedure  // end-procedure this
+
+
+/**********************************************************************
+ *
+ *  screen screen-add-remark-one
+ *
+ **********************************************************************/
+screen screen-add-remark-one
+    window @1,1 to @8,60 title 'screen-add-remark-one'
+    parameters
+        lr-sel-mea-type   type string
+    //returning
+    local
+        lf-mea-remark-one type string
+        lf-mea-type-one   type string
+    no-hide
+    allow entry
+    //data-grid occurs 20
+    //
+    //select *
+    //from table
+    //
+    detail
+        accept lf-mea-remark-one @2,15
+            title "Enter New Remark"
+
+            validation
+            if lf-mea-remark-one = " "
+                    message "Remark Invalid"
+                    reenter
+            end-if
+
+            get tmp-remarks-list key lf-mea-remark-one
+                on error
+                    else
+                    message 'Remark ' '"' rtrim(lf-mea-remark-one)'"' ' is already in use.' ' Please use another one.'
+                    reenter 
+                end-on
+            end-validation
+
+
+        accept z-sel-mea-type @4,15
+            title "Select Type"
+
+            default z-sel-mea-type
+            on help-key do lookup-mea-type
+               returning z-sel-mea-type
+                reenter
+            end-on
+
+    //before
+    //
+    //detail
+    //
+    confirm
+    confirmed
+
+        set mea-remark = lf-mea-remark-one
+        set mea-type = z-sel-mea-type
+        //message tmp-mea-remark
+        insert mea-std-remarks-2
+        on error
+        else
+            set tmp-mea-remark = lf-mea-remark-one
+            insert tmp-remarks-list
+            refresh
+            exit
+        end-on
+        
+       
+    end-confirm
+
+end-screen  // end-screen screen-add-remark-one
+
+/**********************************************************************
+ *
+ *  screen lookup-mea-type
+ *
+ **********************************************************************/
+screen lookup-mea-type
+    window @1,1 to @18,40 title 'lookup-mea-type'
+    //parameters
+    returning
+        lr-ret-type like z-sel-mea-type
+    //local
+    no-hide
+    allow mode-select find
+    data-grid occurs 15
+    //
+    select tmp-mea-types
+    from tmp-types-list
+    //
+    //before
+    //
+    detail
+        //message tmp-mea-types
+        display tmp-mea-types @1,15
+            title "Select Type" 
+    
+    confirm auto
+    confirmed
+        switch screen-mode
+            case mode-select
+                set lr-ret-type = tmp-mea-types
+            exit
+        end-switch
+    
+    end-confirm
+
+end-screen  // end-screen lookup-mea-type
+
+
+
+/**********************************************************************
+ *
+ *  screen delete-to-one
+ *
+ **********************************************************************/
+screen delete-to-one
+    window @1,1 to @18,40 title 'delete-to-one'
+    parameters
+        lp-mea-remark-param like tmp-mea-remark
+    //returning
+    local
+        lf-del-remark-type like mea-remark
+    no-hide
+    allow mode-select-delete find 
+    data-grid occurs 15
+    //
+    select mea-type
+    from mea-std-remarks-2
+    where mea-remark = lp-mea-remark-param
+    //
+    //before
+    //
+    detail
+        //message lp-mea-remark-param "testing param"
+        display mea-type @1,15
+            title "Select Type" 
+    
+    confirm
+        prompt 'Delete remark?'
+    confirmed
+        switch screen-mode
+            case mode-select-delete
+            
+                set lf-del-remark-type = mea-type
+
+                select * from mea-std-remarks-2
+                where mea-remark = lp-mea-remark-param and mea-type = lf-del-remark-type
+                detail
+                    delete mea-std-remarks-2
+                    on error
+                        message "unable to delete"
+                    else
+                        
+                    end-on
+
+                end-select
+
+            //exit
+        end-switch
+
+    end-confirm
+
+end-screen  // end-screen delete-to-one
+
+
